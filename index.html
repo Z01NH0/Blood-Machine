@@ -281,6 +281,8 @@ body.perf-low .chaos-chain,body.perf-low .chaos-hook{filter:none}
  </div>
 </div>
 <div id="shopToast" class="shop-toast">COMPRA EFETUADA</div>
+<script src="zoinho-storage-config.js"></script>
+<script src="zoinho-storage-bridge.js"></script>
 <script>
 'use strict';
 const canvas=document.getElementById('game');let ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});const mainCtx=ctx;
@@ -414,7 +416,7 @@ function defaultProfile(){return{skulls:0,unlockedWeapons:[true,false,false,fals
 function normalizeLevelStats(raw,highestFloor=1){let out={};if(raw&&typeof raw==='object')for(const [key,value] of Object.entries(raw)){let floor=Math.max(1,parseInt(key,10)||0);if(!floor||!value||typeof value!=='object')continue;out[floor]={completed:!!value.completed,bestTime:Number.isFinite(value.bestTime)?value.bestTime:null,bestScore:Number.isFinite(value.bestScore)?value.bestScore:null,fewestDeaths:Number.isFinite(value.fewestDeaths)?value.fewestDeaths:null,bestRank:value.bestRank||null,completions:Math.max(0,value.completions|0),lastTime:Number.isFinite(value.lastTime)?value.lastTime:null,lastScore:Number.isFinite(value.lastScore)?value.lastScore:null,lastDeaths:Number.isFinite(value.lastDeaths)?value.lastDeaths:null,lastRank:value.lastRank||null}}for(let floor=1;floor<highestFloor;floor++)if(!out[floor])out[floor]={completed:true,bestTime:null,bestScore:null,fewestDeaths:null,bestRank:null,completions:1,lastTime:null,lastScore:null,lastDeaths:null,lastRank:null};return out}
 function loadProfile(){try{let raw=JSON.parse(localStorage.getItem(PROFILE_KEY)||'null'),d=defaultProfile();if(!raw)return d;let highestFloor=Math.max(1,raw.highestFloor|0);return{...d,...raw,highestFloor,unlockedWeapons:d.unlockedWeapons.map((v,i)=>i===0?true:!!raw.unlockedWeapons?.[i]),buffs:{...d.buffs,...raw.buffs},stats:{...d.stats,...raw.stats},levelStats:normalizeLevelStats(raw.levelStats,highestFloor)}}catch{return defaultProfile()}}
 let profile=loadProfile();
-function saveProfile(){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(profile))}catch{}}
+function saveProfile(){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(profile));window.ZoinhoStorageBridge?.notifySave('profile')}catch{}}
 const LEVEL_SELECT_MIN=6;
 const levelSelectState={selected:1};
 function floorRecord(floor){return profile.levelStats?.[floor]||null}
