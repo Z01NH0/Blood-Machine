@@ -142,8 +142,59 @@ body.perf-low .chaos-chain,body.perf-low .chaos-hook{filter:none}
 @media(max-width:760px){.settings-grid{grid-template-columns:1fr}.settings-head{align-items:flex-start;flex-direction:column}.settings-shell{padding:17px}.settings-status{flex-direction:column}.menu-warning{display:none}.menu-shell{padding-left:26px;padding-right:26px}.chaos-rib{opacity:.45}}
 
 </style>
+
+<script id="zoinhoCloudBootPrimer">
+(() => {
+  try {
+    if (new URLSearchParams(location.search).get('zoinhoBridge') === '1') {
+      document.documentElement.classList.add('zoinho-cloud-booting');
+    }
+  } catch {}
+})();
+</script>
+<style id="zoinhoCloudBootStyle">
+  html.zoinho-cloud-booting{overflow:hidden!important}
+  #zoinhoCloudBoot{display:none;position:fixed;inset:0;z-index:2147483000;place-items:center;padding:24px;background:radial-gradient(circle at 50% 42%,rgba(107,70,190,.20),transparent 36%),linear-gradient(180deg,#07070c 0%,#0b0911 100%);color:#f7f5fb;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;opacity:1;transition:opacity .24s ease;isolation:isolate}
+  html.zoinho-cloud-booting #zoinhoCloudBoot{display:grid}
+  #zoinhoCloudBoot.zoinho-cloud-boot-leaving{opacity:0;pointer-events:none}
+  #zoinhoCloudBoot::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(to bottom,transparent,black 20%,black 80%,transparent)}
+  #zoinhoCloudBoot .zcb-card{position:relative;width:min(520px,92vw);padding:30px 28px 26px;border:1px solid rgba(167,126,255,.28);border-radius:22px;background:rgba(14,12,21,.90);box-shadow:0 28px 90px rgba(0,0,0,.58),inset 0 1px rgba(255,255,255,.04);backdrop-filter:blur(16px);text-align:center}
+  #zoinhoCloudBoot .zcb-mark{width:58px;height:58px;margin:0 auto 18px;border-radius:18px;display:grid;place-items:center;border:1px solid rgba(173,132,255,.38);background:linear-gradient(145deg,rgba(148,99,255,.18),rgba(58,35,105,.15));box-shadow:0 12px 35px rgba(103,61,191,.20);font-size:22px;font-weight:900;color:#cdb8ff}
+  #zoinhoCloudBoot[data-stage="done"] .zcb-mark{color:#8ff0bd;border-color:rgba(89,220,157,.35);background:rgba(44,150,101,.12)}
+  #zoinhoCloudBoot[data-stage="error"] .zcb-mark{color:#ff9caa;border-color:rgba(255,95,117,.35);background:rgba(168,42,62,.12)}
+  #zoinhoCloudBoot .zcb-kicker{margin-bottom:8px;font-size:10px;line-height:1;font-weight:900;letter-spacing:.22em;color:#a987f1;text-transform:uppercase}
+  #zoinhoCloudBoot h2{margin:0;font-size:clamp(22px,4vw,30px);line-height:1.12;color:#fff}
+  #zoinhoCloudBoot p{min-height:42px;margin:12px auto 20px;max-width:410px;color:#aaa5b4;font-size:13px;line-height:1.55}
+  #zoinhoCloudBoot .zcb-loader{height:3px;overflow:hidden;border-radius:999px;background:#201b2c}
+  #zoinhoCloudBoot .zcb-loader>span{display:block;width:42%;height:100%;border-radius:inherit;background:linear-gradient(90deg,transparent,#a67cff,#d1bdff,#a67cff,transparent);animation:zcbSweep 1.18s ease-in-out infinite}
+  #zoinhoCloudBoot[data-stage="done"] .zcb-loader>span,#zoinhoCloudBoot[data-stage="offline"] .zcb-loader>span{width:100%;animation:none;background:#72d9a3}
+  #zoinhoCloudBoot[data-stage="error"] .zcb-loader>span{width:100%;animation:none;background:#e55c72}
+  #zoinhoCloudBoot .zcb-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:20px}
+  #zoinhoCloudBoot button[hidden]{display:none!important}
+  #zoinhoCloudBoot button{border:1px solid #393244;border-radius:11px;padding:11px 15px;background:#17131f;color:#f8f6fb;font:800 12px/1 system-ui;cursor:pointer}
+  #zoinhoCloudBoot button[data-primary]{border-color:#8e64ea;background:#7548da}
+  #zoinhoCloudBoot .zcb-foot{margin-top:14px;color:#6f6978;font-size:10px;letter-spacing:.04em}
+  @keyframes zcbSweep{0%{transform:translateX(-120%)}100%{transform:translateX(340%)}}
+  @media (prefers-reduced-motion:reduce){#zoinhoCloudBoot,#zoinhoCloudBoot .zcb-loader>span{transition:none!important;animation:none!important}}
+</style>
+
 </head>
 <body data-build="update-17.3">
+<div id="zoinhoCloudBoot" data-stage="connecting" role="status" aria-live="polite" aria-busy="true">
+  <div class="zcb-card">
+    <div class="zcb-mark" id="zoinhoCloudBootStatus">●</div>
+    <div class="zcb-kicker">ZOINHO CLOUD</div>
+    <h2 id="zoinhoCloudBootTitle">Sincronizando progresso...</h2>
+    <p id="zoinhoCloudBootDetail">Conectando à sua conta ZOINHO.</p>
+    <div class="zcb-loader" aria-hidden="true"><span></span></div>
+    <div class="zcb-actions">
+      <button id="zoinhoCloudRetry" type="button" data-primary hidden>Tentar novamente</button>
+      <button id="zoinhoCloudOffline" type="button" hidden>Jogar com save local</button>
+    </div>
+    <div class="zcb-foot">Seu progresso local continua protegido mesmo se a conexão falhar.</div>
+  </div>
+</div>
+
 <canvas id="game"></canvas><div id="renderOverlay" aria-hidden="true"></div>
 <div id="mainMenu" class="screen">
   <div class="menu-chaos" aria-hidden="true">
@@ -281,8 +332,8 @@ body.perf-low .chaos-chain,body.perf-low .chaos-hook{filter:none}
  </div>
 </div>
 <div id="shopToast" class="shop-toast">COMPRA EFETUADA</div>
-<script src="zoinho-storage-config.js?v=cloud-1.2"></script>
-<script src="zoinho-storage-bridge.js?v=cloud-1.2"></script>
+<script src="zoinho-storage-config.js?v=cloud-1.3.0"></script>
+<script src="zoinho-storage-bridge.js?v=cloud-1.3.0"></script>
 <script>
 'use strict';
 const canvas=document.getElementById('game');let ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});const mainCtx=ctx;
