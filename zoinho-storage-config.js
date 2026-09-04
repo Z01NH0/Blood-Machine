@@ -10,6 +10,7 @@
  */
 window.ZOINHO_STORAGE_CONFIG = Object.freeze({
   gameId: 'blood-machine',
+  displayName: 'Blood Machine',
   bridgeVersion: 2,
   portalOrigins: [
     'http://localhost:3000',
