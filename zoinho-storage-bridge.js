@@ -17,6 +17,9 @@
 
   const params = new URLSearchParams(location.search);
   const enabled = params.get('zoinhoBridge') === '1';
+  const autoSyncRequested = params.get('zoinhoAutoSync') === '1';
+  const launchPortalOrigin = normalizeOrigin(params.get('zoinhoPortalOrigin') || '');
+  const referrerOrigin = normalizeOrigin(document.referrer || '');
   const META_KEY = `zoinhoBridgeMeta:${cfg.gameId}`;
   const APPROVED_ORIGINS_KEY = `zoinhoBridgeApprovedOrigins:${cfg.gameId}`;
   const ACCOUNT_BACKUPS_KEY = `zoinhoBridgeAccountBackups:${cfg.gameId}`;
@@ -34,8 +37,6 @@
   let readyAttempts = 0;
   let state = enabled ? 'waiting' : 'disabled';
   let lastAckAt = null;
-  let approvalOverlay = null;
-  let pendingApproval = null;
   let initialSyncResolved = false;
   let initialSyncCompleted = false;
   let initialSnapshotInFlight = false;
@@ -204,13 +205,37 @@
     return writeJsonStorage(APPROVED_ORIGINS_KEY, [...approved]);
   }
 
-  function isTrustedOrigin(origin) {
-    const normalized = normalizeOrigin(origin);
-    return staticTrustedOrigins.has(normalized) || readApprovedOrigins().has(normalized);
-  }
-
   function isExpectedOpener(event) {
     return enabled && Boolean(window.opener) && event.source === window.opener;
+  }
+
+  function isSafeAutomaticPortalOrigin(event, message) {
+    if (!autoSyncRequested || !isExpectedOpener(event)) return false;
+    const origin = normalizeOrigin(event.origin);
+    if (!origin || !launchPortalOrigin || origin !== launchPortalOrigin) return false;
+    if (normalizeOrigin(message?.portalOrigin || '') !== origin) return false;
+    if (message?.bootSyncProtocol !== 1) return false;
+
+    // Quando o navegador fornece Referer, ele também precisa apontar para a mesma origem
+    // que abriu o jogo. Em navegadores que omitem Referer por privacidade, opener + origem
+    // de lançamento + HELLO ainda precisam coincidir.
+    if (referrerOrigin && referrerOrigin !== origin) return false;
+
+    try {
+      const parsed = new URL(origin);
+      const localDev = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+      if (parsed.protocol !== 'https:' && !(localDev && parsed.protocol === 'http:')) return false;
+    } catch {
+      return false;
+    }
+    return true;
+  }
+
+  function isTrustedOrigin(event, message) {
+    const normalized = normalizeOrigin(event.origin);
+    return staticTrustedOrigins.has(normalized)
+      || readApprovedOrigins().has(normalized)
+      || isSafeAutomaticPortalOrigin(event, message);
   }
 
   function emptyBackups() {
@@ -481,58 +506,6 @@
     }
   }
 
-  function removeApprovalOverlay() {
-    if (approvalOverlay?.isConnected) approvalOverlay.remove();
-    approvalOverlay = null;
-  }
-
-  function showOriginApproval(origin, approve, deny) {
-    removeApprovalOverlay();
-    const normalized = normalizeOrigin(origin);
-    setBootStage('authorization', 'Primeira conexão com a ZOINHO', 'Autorize este portal uma única vez para liberar a sincronização automática.');
-    const shell = document.createElement('div');
-    shell.id = 'zoinhoBridgeApproval';
-    shell.setAttribute('role', 'dialog');
-    shell.setAttribute('aria-modal', 'true');
-    shell.innerHTML = `
-      <div class="zoinho-bridge-approval-card">
-        <div class="zoinho-bridge-kicker">ZOINHO CLOUD SAVE</div>
-        <strong>Autorizar conexão do portal?</strong>
-        <p>O portal abaixo quer sincronizar o progresso de ${cfg.displayName || cfg.gameId} neste navegador.</p>
-        <code></code>
-        <small>Esta confirmação só aparece para uma origem ainda não reconhecida. Depois disso a sincronização é automática.</small>
-        <div class="zoinho-bridge-actions">
-          <button type="button" data-action="deny">Recusar</button>
-          <button type="button" data-action="approve">Autorizar</button>
-        </div>
-      </div>`;
-    shell.querySelector('code').textContent = normalized;
-
-    const style = document.createElement('style');
-    style.textContent = `
-      #zoinhoBridgeApproval{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.86);backdrop-filter:blur(10px);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#fff;cursor:default;user-select:text}
-      #zoinhoBridgeApproval .zoinho-bridge-approval-card{width:min(520px,94vw);padding:24px;border:1px solid rgba(157,110,255,.5);border-radius:18px;background:#0c0b12;box-shadow:0 28px 90px rgba(0,0,0,.72)}
-      #zoinhoBridgeApproval .zoinho-bridge-kicker{margin-bottom:10px;color:#b792ff;font-size:11px;font-weight:900;letter-spacing:.18em}
-      #zoinhoBridgeApproval strong{display:block;font-size:22px;line-height:1.2}
-      #zoinhoBridgeApproval p{margin:12px 0;color:#c9c5d4;font-size:14px;line-height:1.55}
-      #zoinhoBridgeApproval code{display:block;overflow-wrap:anywhere;margin:14px 0;padding:11px 13px;border-radius:10px;background:#17151f;color:#f4f2f6;font-size:12px}
-      #zoinhoBridgeApproval small{display:block;color:#918b9e;font-size:11px;line-height:1.45}
-      #zoinhoBridgeApproval .zoinho-bridge-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
-      #zoinhoBridgeApproval button{min-width:112px;padding:11px 15px;border:1px solid #3b3845;border-radius:10px;background:#18161f;color:#fff;font:700 12px system-ui;cursor:pointer}
-      #zoinhoBridgeApproval button[data-action="approve"]{border-color:#9d6eff;background:#6f42d9}`;
-    shell.appendChild(style);
-    shell.querySelector('[data-action="approve"]').addEventListener('click', () => {
-      removeApprovalOverlay();
-      approve();
-    }, { once: true });
-    shell.querySelector('[data-action="deny"]').addEventListener('click', () => {
-      removeApprovalOverlay();
-      deny();
-    }, { once: true });
-    document.body.appendChild(shell);
-    approvalOverlay = shell;
-  }
-
   function acceptHello(event, message) {
     if (!isExpectedOpener(event)) return false;
     if (!message?.nonce || typeof message.nonce !== 'string') {
@@ -551,7 +524,6 @@
     portalSupportsBootAck = message.bootSyncProtocol === 1;
     sessionNonce = message.nonce;
     state = 'connected';
-    pendingApproval = null;
     stopReadyLoop();
 
     if (prepareAccountStorage(portalUserId)) return true;
@@ -567,35 +539,14 @@
     return true;
   }
 
-  function requestOriginApproval(event, message) {
+  function rejectUntrustedOrigin(event) {
     const origin = normalizeOrigin(event.origin);
-    state = 'authorization-required';
-    pendingApproval = { event, message, origin };
-    postDiagnostic(event, 'untrusted-portal-origin', { detail: 'Aguardando autorização do usuário no jogo.' });
-
-    if (cfg.allowOriginApproval === false) {
-      showBootError('Este portal ainda não está autorizado para acessar o Cloud Save.');
-      return;
-    }
-    if (approvalOverlay) return;
-
-    showOriginApproval(origin, () => {
-      const pending = pendingApproval;
-      if (!pending || pending.origin !== origin) return;
-      if (!rememberApprovedOrigin(origin)) {
-        postDiagnostic(pending.event, 'authorization-store-failed');
-        showBootError('Não foi possível guardar a autorização do portal neste navegador.');
-        return;
-      }
-      postDiagnostic(pending.event, 'portal-origin-approved');
-      acceptHello(pending.event, pending.message);
-    }, () => {
-      const pending = pendingApproval;
-      pendingApproval = null;
-      state = 'authorization-denied';
-      if (pending) postDiagnostic(pending.event, 'portal-authorization-denied');
-      showBootError('A sincronização foi recusada. Você ainda pode jogar somente com o save local.');
+    state = 'untrusted-origin';
+    postDiagnostic(event, 'untrusted-portal-origin', {
+      detail: 'A origem que abriu o jogo não corresponde ao lançamento automático da ZOINHO.',
+      observedPortalOrigin: origin
     });
+    showBootError('A conexão automática com o portal não pôde ser validada. Feche esta aba e abra o jogo novamente pela ZOINHO.');
   }
 
   function completeInitialSync(message) {
@@ -625,6 +576,9 @@
       readyAttempts,
       hasLocalSave: hasLocalSave(),
       approvedOrigins: [...readApprovedOrigins()],
+      launchPortalOrigin: launchPortalOrigin || null,
+      referrerOrigin: referrerOrigin || null,
+      automaticPortalTrust: Boolean(autoSyncRequested && launchPortalOrigin),
       bootHadLocalSave: bootLocalState.hadSave,
       bootMetaUpdatedAt: bootLocalState.metaUpdatedAt,
       ownerUserId: readMeta().ownerUserId || null,
@@ -651,8 +605,8 @@
     if (!isExpectedOpener(event)) return;
 
     if (message.type === 'hello') {
-      if (!isTrustedOrigin(event.origin)) {
-        requestOriginApproval(event, message);
+      if (!isTrustedOrigin(event, message)) {
+        rejectUntrustedOrigin(event);
         return;
       }
       acceptHello(event, message);
