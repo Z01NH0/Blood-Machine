@@ -169,7 +169,7 @@
     if (!payload || payload.gameId !== cfg.gameId || !payload.storage || typeof payload.storage !== 'object') return false;
     if (snapshotsEqual(payload.storage)) return false;
 
-    setBootStage('applying', 'Aplicando progresso...', 'Preparando seu save neste dispositivo.');
+    setBootStage('applying', 'Injetando memória...', 'Regravando o núcleo local com o progresso confirmado na nuvem.');
     let wrote = false;
     for (const key of cfg.saveKeys) {
       if (!Object.prototype.hasOwnProperty.call(payload.storage, key)) continue;
@@ -327,7 +327,7 @@
       return true;
     }
     sessionStorage.setItem(ACCOUNT_SWITCH_KEY, userId);
-    setBootStage('account', 'Trocando de conta...', 'Separando o progresso local da conta anterior.');
+    setBootStage('account', 'Trocando identidade...', 'Isolando a memória da conta anterior antes de acoplar a nova sessão.');
     location.reload();
     return true;
   }
@@ -442,7 +442,7 @@
     ui.root.dataset.stage = stage || 'loading';
     if (ui.title && title) ui.title.textContent = title;
     if (ui.detail) ui.detail.textContent = detail || '';
-    if (ui.status) ui.status.textContent = stage === 'error' ? '!' : stage === 'done' ? '✓' : '●';
+    if (ui.status) ui.status.textContent = stage === 'error' ? '!' : stage === 'done' ? '✓' : '◆';
     if (ui.retry) ui.retry.hidden = stage !== 'error';
     if (ui.offline) ui.offline.hidden = stage !== 'error';
     if (stage !== 'error') resetBootTimeout();
@@ -454,13 +454,13 @@
     bootTimer = setTimeout(() => {
       if (initialSyncCompleted || offlineMode) return;
       state = 'error';
-      showBootError('A sincronização está demorando mais que o esperado.');
+      showBootError('O relay não respondeu dentro da janela segura.');
     }, BOOT_TIMEOUT_MS);
   }
 
   function showBootError(detail = 'Não foi possível acessar seu progresso na nuvem agora.', options = {}) {
     clearTimeout(bootTimer);
-    setBootStage('error', 'Não foi possível sincronizar', detail);
+    setBootStage('error', 'Falha no Bloodlink', detail);
     if (options.retryable === false) {
       const ui = getBootUi();
       if (ui.retry) ui.retry.hidden = true;
@@ -476,9 +476,9 @@
     }
     ui.root.dataset.stage = mode === 'offline' ? 'offline' : 'done';
     ui.root.setAttribute?.('aria-busy', 'false');
-    if (ui.title) ui.title.textContent = mode === 'offline' ? 'Modo local' : 'Progresso sincronizado';
-    if (ui.detail) ui.detail.textContent = mode === 'offline' ? 'A nuvem ficará pausada nesta sessão.' : 'Tudo pronto.';
-    if (ui.status) ui.status.textContent = mode === 'offline' ? '○' : '✓';
+    if (ui.title) ui.title.textContent = mode === 'offline' ? 'Modo autônomo' : 'Memória sincronizada';
+    if (ui.detail) ui.detail.textContent = mode === 'offline' ? 'Relay suspenso. A máquina continuará usando somente a memória deste dispositivo.' : 'Núcleo estável. Progresso local e remoto conciliados.';
+    if (ui.status) ui.status.textContent = mode === 'offline' ? '◇' : '✓';
     setTimeout(() => {
       ui.root.classList.add('zoinho-cloud-boot-leaving');
       setTimeout(() => {
@@ -510,7 +510,7 @@
         initialSyncResolved = false;
         initialSyncCompleted = false;
         initialSnapshotInFlight = false;
-        setBootStage('retry', 'Tentando novamente...', 'Reconectando ao seu progresso.');
+        setBootStage('retry', 'Reativando relay...', 'Restabelecendo o enlace com a memória ZOINHO.');
         if (portalWindow && portalOrigin && sessionNonce) post('retry-sync');
         else {
           sessionNonce = null;
@@ -560,7 +560,7 @@
 
     if (prepareAccountStorage(portalUserId)) return true;
 
-    setBootStage('handshake', 'Conta conectada', 'Verificando o progresso salvo...');
+    setBootStage('handshake', 'Identidade reconhecida', 'Validando a memória ligada a esta conta ZOINHO.');
     post('hello-ack', {
       hasSave: hasLocalSave(),
       saveKeysPresent: cfg.saveKeys.filter(key => localStorage.getItem(key) !== null),
@@ -633,7 +633,7 @@
 
   installBootInputGuard();
   bindBootActions();
-  setBootStage('connecting', 'Sincronizando progresso...', 'Conectando à sua conta ZOINHO.');
+  setBootStage('connecting', 'Iniciando Bloodlink...', 'Acoplando a memória da máquina à sua conta ZOINHO.');
 
   addEventListener('message', event => {
     const message = event.data;
@@ -654,13 +654,13 @@
 
     if (message.type === 'boot-status') {
       const stages = {
-        'checking-cloud': ['Verificando progresso...', 'Buscando o save mais recente na nuvem.'],
-        'cloud-found': ['Save encontrado', 'Comparando com o progresso deste dispositivo.'],
-        'cloud-empty': ['Primeira sincronização', 'Preparando seu progresso para a nuvem.'],
-        'saving-cloud': ['Enviando progresso...', 'Salvando a versão mais recente na sua conta.'],
-        'finishing': ['Finalizando...', 'Só mais um instante.']
+        'checking-cloud': ['Varrendo memória remota...', 'Procurando o registro mais recente no relay ZOINHO.'],
+        'cloud-found': ['Memória encontrada', 'Comparando o núcleo remoto com a memória deste dispositivo.'],
+        'cloud-empty': ['Relay sem registro', 'Preparando a memória local para o primeiro selamento na nuvem.'],
+        'saving-cloud': ['Selando progresso...', 'Transmitindo a memória mais recente para sua conta ZOINHO.'],
+        'finishing': ['Estabilizando núcleo...', 'Confirmando integridade e encerrando o enlace.']
       };
-      const copy = stages[message.stage] || ['Sincronizando progresso...', 'Aguarde um instante.'];
+      const copy = stages[message.stage] || ['Processando memória...', 'O BM-OS está conciliando o progresso.'];
       setBootStage(message.stage || 'loading', copy[0], copy[1]);
       return;
     }
@@ -680,7 +680,7 @@
       // O snapshot de boot já inclui qualquer save/default criado até este instante.
       // Só mantemos na fila alterações que ocorrerem DEPOIS deste envio.
       queuedPushReason = null;
-      setBootStage(message.snapshot ? 'finishing' : 'cloud-empty', message.snapshot ? 'Finalizando sincronização...' : 'Preparando seu progresso...', message.snapshot ? 'Confirmando a versão mais recente.' : 'Nenhum save foi encontrado na nuvem.');
+      setBootStage(message.snapshot ? 'finishing' : 'cloud-empty', message.snapshot ? 'Estabilizando núcleo...' : 'Preparando memória local...', message.snapshot ? 'Confirmando a versão mais recente do progresso.' : 'Nenhum registro remoto foi encontrado; a memória local será preservada.');
 
       // Em navegador realmente novo, alguns jogos criam um objeto default no localStorage
       // durante o bootstrap. Ele não deve virar um Cloud Save falso antes de o jogador fazer
@@ -736,7 +736,7 @@
       sessionNonce = null;
       state = 'waiting';
       if (!initialSyncCompleted) {
-        setBootStage('connecting', 'Reconectando...', 'A conexão com o portal foi interrompida.');
+        setBootStage('connecting', 'Restabelecendo Bloodlink...', 'O relay com o portal foi interrompido e está sendo reativado.');
         startReadyLoop();
       }
     }
