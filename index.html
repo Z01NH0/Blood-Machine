@@ -371,8 +371,8 @@ body.perf-low .chaos-chain,body.perf-low .chaos-hook{filter:none}
  </div>
 </div>
 <div id="shopToast" class="shop-toast">COMPRA EFETUADA</div>
-<script src="zoinho-storage-config.js?v=cloud-1.5.0-shell"></script>
-<script src="zoinho-storage-bridge.js?v=cloud-1.5.0-shell"></script>
+<script src="zoinho-storage-config.js?v=cloud-1.5.1-shell-audio"></script>
+<script src="zoinho-storage-bridge.js?v=cloud-1.5.1-shell-audio"></script>
 <script>
 'use strict';
 const canvas=document.getElementById('game');let ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});const mainCtx=ctx;
@@ -489,6 +489,13 @@ $('#fullscreenBtn').onclick=()=>{if(!document.fullscreenElement)document.documen
 $('#mainSettingsBtn').onclick=()=>openSettings('menu');$('#pauseSettingsBtn').onclick=()=>openSettings('pause');$('#settingsCloseTop').onclick=()=>closeSettings();
 document.addEventListener('pointerdown',e=>{if(e.target.closest('button'))audio.ui()},{passive:true});
 addEventListener('pointerdown',()=>{musicManager.unlock();if(!musicManager.current)musicManager.play('menu')},{once:true,passive:true});
+const ZOINHO_SHELL_AUTOPLAY=new URLSearchParams(location.search).get('zoinhoShell')==='1'&&new URLSearchParams(location.search).get('zoinhoAutoplay')==='1';
+if(ZOINHO_SHELL_AUTOPLAY){
+ queueMicrotask(()=>{
+  musicManager.unlock();
+  try{audio.init();if(audio.ctx?.state==='suspended')audio.ctx.resume().catch(()=>{})}catch(_){}
+ });
+}
 $$('[data-modal]').forEach(b=>b.onclick=()=>{$('#'+b.dataset.modal).classList.remove('hidden')});$$('.close-btn').forEach(b=>b.onclick=()=>b.closest('.modal').classList.add('hidden'));
 $('#playBtn').onclick=()=>openLevelSelect();$('#levelBackBtn').onclick=()=>closeLevelSelect();$('#levelPlayBtn').onclick=()=>playSelectedLevel();$('#resumeBtn').onclick=()=>togglePause();$('#restartBtn').onclick=()=>restartCurrentFloor(false);$('#menuBtn').onclick=()=>returnMenu();$('#endRestart').onclick=()=>restartCurrentFloor(true);$('#endMenu').onclick=()=>returnMenu();$('#terminalScreen').onclick=()=>terminalClick();$$('[data-shop-tab]').forEach(b=>b.onclick=()=>{shopState.tab=b.dataset.shopTab;renderShop()});$('#continueMassacre').onclick=()=>continueMassacre();
 const ranks=[{r:'D',n:'DECADENTE',t:0,c:'#d7c6b5'},{r:'C',n:'CARNICEIRO',t:120,c:'#9fd0ff'},{r:'B',n:'BRUTAL',t:300,c:'#74e387'},{r:'A',n:'ABOMINÁVEL',t:560,c:'#ffd34e'},{r:'S',n:'SANGRENTO',t:900,c:'#ff793d'},{r:'SS',n:'SACRÍLEGO',t:1320,c:'#ff3743'},{r:'SSS',n:'SATÂNICO',t:1820,c:'#f33dff'}];
