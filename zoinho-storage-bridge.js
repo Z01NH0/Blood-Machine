@@ -1,3 +1,4 @@
+/* ZOINHO Storage Bridge v2 — Game Shell host support (parent + opener). */
 (() => {
   'use strict';
 
@@ -19,6 +20,8 @@
   const enabled = params.get('zoinhoBridge') === '1';
   const autoSyncRequested = params.get('zoinhoAutoSync') === '1';
   const launchPortalOrigin = normalizeOrigin(params.get('zoinhoPortalOrigin') || '');
+  const shellRequested = params.get('zoinhoShell') === '1';
+  const portalHostWindow = shellRequested && window.parent && window.parent !== window ? window.parent : window.opener;
   const referrerOrigin = normalizeOrigin(document.referrer || '');
   const META_KEY = `zoinhoBridgeMeta:${cfg.gameId}`;
   const APPROVED_ORIGINS_KEY = `zoinhoBridgeApprovedOrigins:${cfg.gameId}`;
@@ -227,12 +230,12 @@
     }
   }
 
-  function isExpectedOpener(event) {
-    return enabled && Boolean(window.opener) && event.source === window.opener;
+  function isExpectedPortalHost(event) {
+    return enabled && Boolean(portalHostWindow) && event.source === portalHostWindow;
   }
 
   function isSafeAutomaticPortalOrigin(event, message) {
-    if (!autoSyncRequested || !isExpectedOpener(event)) return false;
+    if (!autoSyncRequested || !isExpectedPortalHost(event)) return false;
     const origin = normalizeOrigin(event.origin);
     if (!origin || !launchPortalOrigin || origin !== launchPortalOrigin) return false;
     if (normalizeOrigin(message?.portalOrigin || '') !== origin) return false;
@@ -396,10 +399,10 @@
   }
 
   function sendReady() {
-    if (!enabled || !window.opener) return false;
+    if (!enabled || !portalHostWindow) return false;
     readyAttempts += 1;
     try {
-      window.opener.postMessage({
+      portalHostWindow.postMessage({
         protocol: PROTOCOL,
         bridgeVersion: BRIDGE_VERSION,
         type: 'ready',
@@ -413,7 +416,7 @@
   }
 
   function startReadyLoop() {
-    if (!enabled || !window.opener || readyTimer || sessionNonce || offlineMode) return;
+    if (!enabled || !portalHostWindow || readyTimer || sessionNonce || offlineMode) return;
     sendReady();
     readyTimer = setInterval(() => {
       if (sessionNonce || readyAttempts >= READY_RETRY_LIMIT || offlineMode) {
@@ -536,7 +539,7 @@
   }
 
   function acceptHello(event, message) {
-    if (!isExpectedOpener(event)) return false;
+    if (!isExpectedPortalHost(event)) return false;
     if (!message?.nonce || typeof message.nonce !== 'string') {
       postDiagnostic(event, 'invalid-handshake', { detail: 'Nonce ausente ou inválido.' });
       return false;
@@ -613,6 +616,8 @@
       approvedOrigins: [...readApprovedOrigins()],
       launchPortalOrigin: launchPortalOrigin || null,
       referrerOrigin: referrerOrigin || null,
+      hostMode: shellRequested && window.parent !== window ? 'parent' : 'opener',
+      shellRequested,
       automaticPortalTrust: Boolean(autoSyncRequested && launchPortalOrigin),
       automaticPortalSessionOrigin: readAutomaticPortalSession()?.origin || null,
       bootHadLocalSave: bootLocalState.hadSave,
@@ -626,7 +631,7 @@
     })
   });
 
-  if (!enabled || !window.opener) {
+  if (!enabled || !portalHostWindow) {
     releaseBootGate();
     return;
   }
@@ -638,7 +643,7 @@
   addEventListener('message', event => {
     const message = event.data;
     if (!message || message.protocol !== PROTOCOL || message.gameId !== cfg.gameId) return;
-    if (!isExpectedOpener(event)) return;
+    if (!isExpectedPortalHost(event)) return;
 
     if (message.type === 'hello') {
       if (!isTrustedOrigin(event, message)) {
